@@ -1,0 +1,12 @@
+{
+  "name": "Berliner Toilette",
+  "short_name": "Toilette",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#232426",
+  "theme_color": "#212224",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

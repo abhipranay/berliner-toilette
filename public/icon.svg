@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#232426"/>
+  <rect x="88" y="72" width="336" height="368" rx="18" fill="#b8b7b3"/>
+  <rect x="88" y="72" width="336" height="368" rx="18" fill="none" stroke="#17181a" stroke-width="14"/>
+  <rect x="128" y="150" width="256" height="160" rx="8" fill="#101112"/>
+  <circle cx="256" cy="230" r="62" fill="url(#dome)"/>
+  <defs>
+    <radialGradient id="dome" cx="0.35" cy="0.28" r="1">
+      <stop offset="0" stop-color="#ff7a5e"/>
+      <stop offset="0.45" stop-color="#ef452a"/>
+      <stop offset="1" stop-color="#bd2407"/>
+    </radialGradient>
+  </defs>
+  <text x="256" y="392" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="#3a3b3d">WC</text>
+</svg>
