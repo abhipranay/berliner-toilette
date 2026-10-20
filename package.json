@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:host": "vite --host",
     "build": "vite build",
+    "build:pages": "vite build --base=/berliner-toilette/",
     "preview": "vite preview",
     "host": "vite build && vite preview --host --port 4173"
   },
