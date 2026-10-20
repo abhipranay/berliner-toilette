@@ -3,9 +3,10 @@
 // so tests simulate time deterministically.
 
 export const TIMINGS = {
-  openingMs: 1500,   // pneumatic door swing
-  occupiedMs: 30000, // real booth: 20 min, sped up for play
-  cleaningMs: 45000, // 3 × 15 s: Becken → Desinfektion → Trocknung
+  openingMs: 1500,    // pneumatic door swing
+  occupiedMs: 30000,  // real booth: 20 min, sped up for play
+  cleaningMs: 45000,  // 3 × 15 s: Becken → Desinfektion → Trocknung
+  completeHoldMs: 2500, // bar sits at 100 % before the sign returns to FREI
 }
 
 const PHASE_COUNT = 3
@@ -77,9 +78,13 @@ export function createToiletMachine() {
         } else if (status === 'cleaning') {
           progress = Math.min(100, (elapsedInStatus / TIMINGS.cleaningMs) * 100)
           if (progress >= 100) {
-            status = 'frei'
-            progress = 0
-            elapsedInStatus = 0
+            // hold the completed bar visible before flipping back to FREI
+            progress = 100
+            if (elapsedInStatus >= TIMINGS.cleaningMs + TIMINGS.completeHoldMs) {
+              status = 'frei'
+              progress = 0
+              elapsedInStatus = 0
+            }
           }
           emit()
           remaining = 0

@@ -1,89 +1,102 @@
 <script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from './assets/vite.svg'
-  import heroImg from './assets/hero.png'
-  import Counter from './lib/Counter.svelte'
+  import { onMount } from 'svelte'
+  import { createToiletMachine } from './machine/toiletMachine.js'
+  import { sounds } from './lib/sounds/synth.js'
+  import WallScene from './lib/components/WallScene.svelte'
+  import DoorOverlay from './lib/components/DoorOverlay.svelte'
+
+  const machine = createToiletMachine()
+
+  let status = $state('frei')
+  let progress = $state(0)
+  let phase = $state(null)
+  let muted = $state(false)
+  try {
+    muted = localStorage.getItem('toilet-muted') === 'true'
+  } catch {
+    /* storage unavailable */
+  }
+
+  // Sound cues fire on state and phase transitions, straight from the machine.
+  machine.subscribe((s) => {
+    if (s.status !== status) {
+      if (s.status === 'opening') {
+        sounds.playClick()
+        sounds.playDoor()
+      } else if (status === 'opening' && s.status === 'occupied') {
+        sounds.playThunk()
+      } else if (s.status === 'cleaning') {
+        sounds.cleaningPhase(s.phase)
+      } else if (status === 'cleaning' && s.status === 'frei') {
+        sounds.stopCleaning()
+        sounds.playChime()
+      }
+      status = s.status
+    } else if (s.status === 'cleaning' && s.phase !== phase) {
+      // drying begins: spray swaps to the vacuum motor
+      sounds.cleaningPhase(s.phase)
+    }
+    progress = s.progress
+    phase = s.phase
+  })
+
+  onMount(() => {
+    if (import.meta.env.DEV) window.__machine = machine
+    sounds.setMuted(muted)
+    let raf
+    let last = performance.now()
+    const loop = (t) => {
+      try {
+        machine.advance(t - last)
+      } catch (e) {
+        console.error('machine advance failed', e)
+      }
+      last = t
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  })
+
+  function press() {
+    machine.press()
+  }
+  function toggleMute() {
+    muted = !muted
+    sounds.setMuted(muted)
+    try {
+      localStorage.setItem('toilet-muted', String(muted))
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      document.documentElement.requestFullscreen?.()
+    }
+  }
 </script>
 
-<section id="center">
-  <div class="hero">
-    <img src={heroImg} class="base" width="170" height="179" alt="" />
-    <img src={svelteLogo} class="framework" alt="Svelte logo" />
-    <img src={viteLogo} class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
-  </div>
-  <Counter />
-</section>
+<WallScene {status} {progress} {phase} onpress={press} />
+<DoorOverlay active={status === 'opening'} />
 
-<div class="ticks"></div>
+<div class="fixed bottom-3 right-3 z-50 flex gap-2">
+  <button class="ctl" onclick={toggleMute} aria-label="Ton an/aus">{muted ? '🔇' : '🔊'}</button>
+  <button class="ctl" onclick={toggleFullscreen} aria-label="Vollbild">⛶</button>
+</div>
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#documentation-icon"></use>
-    </svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-          <img class="logo" src={viteLogo} alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://svelte.dev/" target="_blank" rel="noreferrer">
-          <img class="button-icon" src={svelteLogo} alt="" />
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#social-icon"></use>
-    </svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li>
-        <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#github-icon"></use>
-          </svg>
-          GitHub
-        </a>
-      </li>
-      <li>
-        <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#discord-icon"></use>
-          </svg>
-          Discord
-        </a>
-      </li>
-      <li>
-        <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#x-icon"></use>
-          </svg>
-          X.com
-        </a>
-      </li>
-      <li>
-        <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#bluesky-icon"></use>
-          </svg>
-          Bluesky
-        </a>
-      </li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
+<style>
+  .ctl {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(20, 20, 22, 0.55);
+    color: #ddd;
+    font-size: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+  }
+</style>
