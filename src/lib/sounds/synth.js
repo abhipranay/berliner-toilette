@@ -1,6 +1,6 @@
 // Web Audio synth for all booth sounds — no binary assets needed.
 // Click, pneumatic door hiss, latch thunk, water-spray loop during
-// Becken/Desinfektion, dryer rumble during Trocknung, and a
+// Becken/Desinfektion, hand-dryer blast during Trocknung, and a
 // two-tone "done" chime.
 
 let ctx = null
@@ -136,81 +136,69 @@ export const sounds = {
     spray = null
   },
 
-  // dryer — Trocknung: hot-air blower. Deep air-rush (dominant) with a
-  // fast rotor flutter, plus a modest motor hum underneath.
+  // dryer — Trocknung: hand dryer. Dominant air blast with jet
+  // turbulence, plus the motor whine spinning up on entry.
   startDryer() {
     if (muted || dryer) return
     const a = ac()
     const t = a.currentTime
     const master = a.createGain()
     master.gain.setValueAtTime(0, t)
-    master.gain.linearRampToValueAtTime(1, t + 0.6)
+    master.gain.linearRampToValueAtTime(1, t + 0.5)
     master.connect(a.destination)
 
-    // deep air rush — the body of the sound
-    const air = a.createBufferSource()
-    air.buffer = noise(2)
-    air.loop = true
-    const lp = a.createBiquadFilter()
-    lp.type = 'lowpass'
-    lp.frequency.value = 320
-    lp.Q.value = 0.9
-    const airGain = a.createGain()
-    airGain.gain.value = 0.11
+    // the blast: warm body of forced air
+    const blast = a.createBufferSource()
+    blast.buffer = noise(4)
+    blast.loop = true
+    const blastLp = a.createBiquadFilter()
+    blastLp.type = 'lowpass'
+    blastLp.frequency.value = 520
+    blastLp.Q.value = 0.7
+    const blastGain = a.createGain()
+    blastGain.gain.value = 0.14
 
-    // rotor flutter: fast amplitude pulsing on the air
-    const flutter = a.createOscillator()
-    const fg = a.createGain()
-    flutter.type = 'triangle'
-    flutter.frequency.value = 9
-    fg.gain.value = 0.028
-    flutter.connect(fg).connect(airGain.gain)
+    // jet turbulence: fast roughness on the air (feels like a jet, not a tone)
+    const turb = a.createOscillator()
+    const turbGain = a.createGain()
+    turb.type = 'sine'
+    turb.frequency.value = 22
+    turbGain.gain.value = 0.035
+    turb.connect(turbGain).connect(blastGain.gain)
 
-    // motor hum, filtered so it purrs rather than buzzes
-    const motor = a.createOscillator()
-    motor.type = 'sawtooth'
-    motor.frequency.value = 115
-    const mlp = a.createBiquadFilter()
-    mlp.type = 'lowpass'
-    mlp.frequency.value = 480
-    const mg = a.createGain()
-    mg.gain.value = 0.032
-    // slow pitch drift like a real motor under load
-    const drift = a.createOscillator()
-    const dg = a.createGain()
-    drift.frequency.value = 0.7
-    dg.gain.value = 4
-    drift.connect(dg).connect(motor.frequency)
-
-    // second harmonic
-    const hum = a.createOscillator()
-    hum.type = 'triangle'
-    hum.frequency.value = 230
-    const hg = a.createGain()
-    hg.gain.value = 0.009
-
-    // faint high hiss for realism
+    // bright air hiss
     const hiss = a.createBufferSource()
-    hiss.buffer = noise(2)
+    hiss.buffer = noise(4)
     hiss.loop = true
-    const bp = a.createBiquadFilter()
-    bp.type = 'bandpass'
-    bp.frequency.value = 2400
-    bp.Q.value = 0.4
-    const bg = a.createGain()
-    bg.gain.value = 0.006
+    const hissBp = a.createBiquadFilter()
+    hissBp.type = 'bandpass'
+    hissBp.frequency.value = 3200
+    hissBp.Q.value = 0.4
+    const hissGain = a.createGain()
+    hissGain.gain.value = 0.028
 
-    air.connect(lp).connect(airGain).connect(master)
-    motor.connect(mlp).connect(mg).connect(master)
-    hum.connect(hg).connect(master)
-    hiss.connect(bp).connect(bg).connect(master)
-    air.start(t)
-    flutter.start(t)
-    motor.start(t)
-    drift.start(t)
-    hum.start(t)
+    // motor whine spinning up, like a hand dryer switching on
+    const whine = a.createOscillator()
+    const whineGain = a.createGain()
+    whine.type = 'triangle'
+    whine.frequency.setValueAtTime(200, t)
+    whine.frequency.exponentialRampToValueAtTime(520, t + 1.0)
+    whineGain.gain.value = 0.022
+    const vib = a.createOscillator()
+    const vibGain = a.createGain()
+    vib.frequency.value = 6
+    vibGain.gain.value = 8
+    vib.connect(vibGain).connect(whine.frequency)
+
+    blast.connect(blastLp).connect(blastGain).connect(master)
+    hiss.connect(hissBp).connect(hissGain).connect(master)
+    whine.connect(whineGain).connect(master)
+    blast.start(t)
     hiss.start(t)
-    dryer = { master, sources: [air, hiss], oscs: [flutter, motor, drift, hum] }
+    turb.start(t)
+    whine.start(t)
+    vib.start(t)
+    dryer = { master, sources: [blast, hiss], oscs: [turb, whine, vib] }
   },
 
   stopDryer() {
@@ -236,7 +224,7 @@ export const sounds = {
 
   stopCleaning() {
     this.stopSpray()
-    this.stopVacuum()
+    this.stopDryer()
   },
 
   playChime() {

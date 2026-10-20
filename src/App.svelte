@@ -41,7 +41,10 @@
   })
 
   onMount(() => {
-    if (import.meta.env.DEV) window.__machine = machine
+    if (import.meta.env.DEV) {
+      window.__machine = machine
+      window.__sounds = sounds
+    }
     sounds.setMuted(muted)
     let raf
     let last = performance.now()
